@@ -1,0 +1,745 @@
+---
+title: "Relation between Products"
+author: "David and Fabi"
+date: "11/12/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+  
+## SUMMARY 
+In this report we have worked to fulfil Blackwell's needs of understanding of Electronidex Clientele and to assess a potential adquisition .
+ 
+Electronidex is a start-ip electronics online retailer, which has politely provided us with a CSV file containing 1 month of transactions and also with a portfolio of their current available products, all this provided despite its lack of funding and means.
+ 
+For this purpose, our team has carried out a market basket analysis in order to find insightful information, among it we hope to find patterns and items relationships, but also to build recommendations based on the results found.
+
+
+## Data Exploration
+
+The provided dataset was imported as a transactions file, then we used the portfolio file to assign their respective categories to the 125 products. For a deeper analysis, the data was split in 2 classes. On this analysis we have make a costumer segmentacion for B2B clients and B2C clients.
+
+While carrying out the analysis the following was discovered:
+There are 9835 transactions 
+2163 items are consumed alone 
+There are 125 items per products and 18 different on levels
+The most Frequents items are iMac,Laptop Hp, Desktop Cyberpowergamer, Earpods-Apple, Mc Book air.
+Also it have been discovered that clients buy between 3 and 4 products most of the time.
+
+Data provided is only for 1 month of transactions, it would be interesting to know what month or season is, to understand better the transactions. E.g. We can get confused classifying B2B and B2C during Christmas or Black Friday.
+
+```{r , echo=FALSE, results='hide',fig.keep='all',message=FALSE}
+library("readr")
+library("readr")
+library("ggplot2")
+library("lattice")
+library("caret")
+library("corrplot")
+library("dplyr")
+library("e1071")
+library("grid")
+library(dplyr)
+library(tidyverse)
+library(readxl)
+library(knitr)
+library(ggplot2)
+library(lubridate)
+library(arules)
+library(plyr)
+library(readr)
+library(cba)
+library(arules)
+library(arulesViz)
+library(rio)
+
+                                    
+ET <- read_transactions("C:/RespaldoFR/UBIQUM/Proyectos/Association_between_products/Data_sets/ElectronidexTransactions2017.csv", 
+                        format = "basket", 
+                        sep=",", 
+                        rm.duplicates=F,
+                        cols = NULL)
+
+products <- read_excel("C:/Respaldo FR/UBIQUM/Proyectos/Association_between_products/Data_sets/products.xlsx", col_names = TRUE)
+
+products <- as.data.frame(products)
+
+Labels<- c("HardDrive_External_1TB_Portable","HardDrive_External_2TBPortable", "ComputerMouse_3Button", "HardDrive_External_3TBPortable","HardDrive_Desktop_5TB","Laptop_Acer_Aspire", "Desktop_Acer", "Monitor_Acer", "ComputerHeadPhones_Ailihen_Stereo", "Laptop_Alienware_AW17R4-7345SLV-PUS17", "Monitor_AOC", "ActiveHeadPhones_APIE_Bluetooh","ActiveHeadPhones_Earpods_Apple", "Laptop_AppleMacBookAir", "Laptop_AppleMacBookPro", "Keyboard_AppleMagic", "SmartHomeDevice_TV_Apple","Keyboard_AppleWired", "Keyboard_AppleWireless", "Monitor_ASUS2", "Laptop_ChromebookASUS", "Desktop_ASUS", "Monitor_ASUS","ComputerCord_AudioCable", "Keyboard_BacklitLED_Gaming", "Accessories_MousePad_Belkin", "Speaker_BoseCompanion", "Printer_Brother", "PrinterInk_Toner_Brother", "Speaker_Bluetooth_Cambridge","PrinterInk_Canon", "Printer_Canon_Office", "Software_ComputerGame", "Speaker_CyberAcoustics", "Desktop_CYBERPOWERGamer", "Desktop_Dell2", "Desktop_Dell", "MouseAndKeyboardCombo_Dell_KM117Wireless", "Laptop_Dell", "Monitor_Dell", "Keyboard_Dell_Wired", "Speaker_DOSS_Touch_Wireless_Bluetooth", "Printer_DYMO_LabelMaker","PrinterInk_DYMOLabelingTape", "MouseAndKeyboardCombo_EagleTec_Wireless", "Laptop_Eluktronics_ProGaming", "PrinterInk_Epson_Black", "Printer_Epson", "ComputerCord_Etekcity_PowerExtension","ComputerCord_EthernetCable", "ComputerTablet_FireHD", "SmartHomeDevice_FireTVStick", "ComputerStand_MonitorFullMotion", "ComputerMouse_GamingProfessional", "ComputerMouse_GenericBlack_3Button", "SmartHomeDevice_GoogleHome", "ComputerStand_HalterAcrylicMonitorStand", "ComputerStand_Halter_MeshMetal_MonitorStand", "ComputerCord_HDMIAdapter", "ComputerCord_HDMICable6ft", "ComputerStand_HeightAdjustable_StandingDesk", "PrinterInk_HP_BlackAndTricolor", "Desktop_HP", "Laptop_HP", "Monitor_HP", "Laptop_HP_Notebook_TouchScreen_PC", "Keyboard_HP_USB", "ComputerMouse_HP_Wireless", "Printer_HP_Wireless", "Desktop_iMac", "Desktop_Intel", "ComputerTablet_iPad", "ComputerTablet_iPadPro", "Accessories_iPhone_Charger_Cable", "Speaker_JBL_Splashproof_Portable_Bluetooth", "ComputerHeadPhones_Kensington", "ComputerTablet_Kindle","ComputerHeadPhones_Koss_Home", "Accessories_LargeMousePad", "Desktop_Lenovo_Computer", "Monitor_LG", "Laptop_LG_Touchscreen", "ComputerMouse_Logitech_3button", "ComputerHeadPhones_HeadSet_Logitech_ClearChat", "MouseAndKeyboardCombo_Logitech_Desktop_MK120", "Keyboard_Logitech", "MouseAndKeyboardCombo_Logitech_MK270_Wireless", "MouseAndKeyboardCombo_Logitech_MK360_Wireless", "MouseAndKeyboardCombo_Logitech_MK550_Wireless_Wave", "Speaker_Logitech_Multimedia", "ComputerHeadPhones_Headset_Logitech_Stereo", "Keyboard_Logitech_Wireless", "ComputerMouse_Logitech_Wireless", "Speaker_Mackie_CR", "ComputerMouse_Microsoft_BasicOptical", "ComputerHeadPhones_HeadSet_Microsoft", "Software_MicrosoftOffice_HomeandStudent2016","MouseAndKeyboardCombo_Microsoft_Wireless_Comfort","MouseAndKeyboardCombo_Microsoft_Wireless_Desktop", "ActiveHeadPhones_MonsterBeats_ByDrDre","ComputerStand_MultiMediaStand","ActiveHeadPhones_Otium_Wireless_Sports_Bluetooth", "ActiveHeadPhones_Panasonic_In-Ear", "ComputerHeadPhones_Panasonic_On-Ear_Stereo_RP-HT21", "ComputerHeadPhones_HeadSet_PC_Gaming", "ActiveHeadPhones_Philips_Flexible_Earhook","ComputerMouse_Redragon_Gaming", "MouseAndKeyboardCombo_Rii_LED_Gaming", "Keyboard_Rii_LED", "Speaker_Rokono_Mini", "SmartHomeDevice_RokuExpress", "ComputerCord_Samsung_ChargingCable", "ComputerTablet_SamsungGalaxy", "Monitor_Samsung", "Monitor_Sceptre","HardDrive_External_Slim_2TB_Portable", "ComputerMouse_Slim_Wireless", "SmartHomeDevice_SmartLightBulb", "Speaker_Sonos", "ComputerCord_USB_Cable", "ComputerCord_VGA_MonitorCable","Monitor_ViewSonic", "ComputerMouse_Wireless_Portable", "ComputerHeadPhones_HeadSet_XIBERIA_Gaming", "ComputerHeadPhones_HeadSet_Zombie_Gaming")
+  
+
+  ET<-ET[which(size(ET)!= 0)]
+  view(ET)
+
+#vector ####
+  
+  categoriesvector <- c()
+ClosestMatch <- function(string,StringVector) {
+  matches <- agrep(string,StringVector,value=TRUE)
+  distance <- sdists(string,matches,method = "ow")
+  matches <- data.frame(matches,as.numeric(distance))
+  matches <- subset(matches,distance==min(distance))
+  as.character(matches$matches)
+}
+for (i in 1:length(ET@itemInfo$labels)){
+  value <- ClosestMatch(ET@itemInfo$labels[i], products$product)
+  index <- which(products$product == value)
+  categoriesvector <- c(categoriesvector,products[index,2])
+}
+
+#Cleaning ####
+
+ET@itemInfo$labels <- gsub("\"","",ET@itemInfo$labels)
+oneCat <- ET[which(size(ET) == 1), ] 
+
+Level1<-as.factor(sub("\\_.*", "", Labels))
+# Level1
+# 
+ET@itemInfo$level1<-Level1
+ET<-ET[which(size(ET)!= 0)]
+dim(ET)[1]
+
+
+#Data Frame ####
+
+print(levels(itemInfo(ET)[["level1"]]))  
+
+ET_ProdTypes<- aggregate(ET, itemInfo(ET)[["level1"]])
+
+#Prodcat
+ET_ProdCAT <- aggregate(ET,by=categoriesvector)
+ET_ProdCat <- as(ET_ProdCAT,"matrix")
+
+ET_ProdCat <- as(ET_ProdCat,"transactions")
+
+#ProdType
+itemLabels(ET)<-Labels
+myLevel1<-as.factor(sub("\\_.*", "", Labels))
+myLevel1
+  
+ET@itemInfo$level1<-myLevel1
+view(myLevel1)
+  
+print(levels(itemInfo(ET)[["level1"]]))
+
+DataTran_ProdTypes<- aggregate(ET, itemInfo(ET)[["level1"]])
+
+
+# costumer segmentation ####
+Transactions_costumers <- ET[which(size(ET)!=0)]
+
+
+#Transactions_costumers@itemInfo$labels <- Level1
+transactionType <- c()
+transactionType$type <- NA
+
+for(i in 1:length(Transactions_costumers)){
+  count <- 0
+  x <- table(LIST(Transactions_costumers)[i])
+  datatab <- as.data.frame(x)
+  for( l in 1: nrow(datatab)){
+    if(datatab[l,2] != 1 ) {
+      count <- 1
+    }
+  }
+  if(count==0 & size(Transactions_costumers)[i]<5){
+    transactionType$type[i] = 'B2C'
+  }
+  else{
+    transactionType$type[i] = "B2B"
+  }
+}
+
+
+#B2CandB2B ####
+
+transactions_df <- as(Transactions_costumers,'matrix')
+transactions_df <- as.data.frame(transactions_df)
+transactions_df_b2b <- transactions_df[which(transactionType[[1]] == 'B2B'),]
+transactions_b2b <- as(transactions_df_b2b,'transactions')
+
+transactions_df_b2c <- transactions_df[which(transactionType[[1]] == 'B2C'),]
+transactions_b2c <- as(transactions_df_b2c,'transactions')
+
+
+#Distribución del tamaño de las transacciones ####
+
+tamanyos <- size(ET)
+summary(tamanyos)
+quantile(tamanyos, probs = seq(0,1,0.1))
+
+data.frame(tamanyos) %>%
+  ggplot(aes(x = tamanyos)) +
+  geom_histogram() +
+  labs(title = "Transaction size distribution",
+       x = "Tamaño") +
+  theme_bw()
+
+frecuencia_items <- itemFrequency(x = ET)
+frecuencia_items %>% sort(decreasing = TRUE) %>% head(5)
+
+frecuencia_items <- itemFrequency(x = ET, type = "absolute")
+frecuencia_items %>% sort(decreasing = TRUE) %>% head(5)
+
+soporte <- 30/dim(ET)[1]
+
+itemsets <- apriori(data = ET,
+                    parameter = list(support = soporte,
+                                     minlen = 1,
+                                     maxlen = 20,
+                                     target = "frequent itemset"))
+
+# costumer segmentation ####
+Transactions_costumers <- ET[which(size(ET)!=0)]
+
+
+#Transactions_costumers@itemInfo$labels <- Level1
+transactionType <- c()
+transactionType$type <- NA
+
+for(i in 1:length(Transactions_costumers)){
+  count <- 0
+  x <- table(LIST(Transactions_costumers)[i])
+  datatab <- as.data.frame(x)
+  for( l in 1: nrow(datatab)){
+    if(datatab[l,2] != 1 ) {
+      count <- 1
+    }
+  }
+  if(count==0 & size(Transactions_costumers)[i]<5){
+    transactionType$type[i] = 'B2C'
+  }
+  else{
+    transactionType$type[i] = "B2B"
+  }
+}
+
+
+#B2CandB2B ####
+
+transactions_df <- as(Transactions_costumers,'matrix')
+transactions_df <- as.data.frame(transactions_df)
+transactions_df_b2b <- transactions_df[which(transactionType[[1]] == 'B2B'),]
+transactions_b2b <- as(transactions_df_b2b,'transactions')
+
+transactions_df_b2c <- transactions_df[which(transactionType[[1]] == 'B2C'),]
+transactions_b2c <- as(transactions_df_b2c,'transactions')
+
+
+#18 CATEGORIES
+
+print(levels(itemInfo(ET)[["level1"]]))  
+
+ET_ProdTypes<- aggregate(ET, itemInfo(ET)[["level1"]])
+
+
+ET_ProdCAT <- aggregate(ET,by=categoriesvector)
+ET_ProdCat <- as(ET_ProdCAT,"matrix")
+
+ET_ProdCat <- as(ET_ProdCat,"transactions")
+
+#inspect(ET_ProdCat)
+#inspect(ET_ProdTypes)
+#inspect(transactions_b2b)
+#inspect(transactions_b2c)
+
+
+
+
+
+
+```
+
+## B2B AND B2C CLIENTES
+
+We can visualize the frequency of the differents categories. We can see that the most frequent are Desktop, Laptop and Monitors.
+And the most frequent products are iMac, Hp Laptop and Cyberpower Desktop.
+
+To take in consideration the items most frequent we have also to consider the support.
+
+
+```{r , echo=FALSE, results='hide',fig.keep='all',message=FALSE}
+
+
+itemFrequencyPlot(ET, topN = 10, type ="relative", horiz=TRUE, cex.names=0.8,
+                  xlim=c(0,0.4), las=1, col="dark blue", 
+                  xlab = "% Transactions containing Products")  
+
+
+itemFrequencyPlot(ET_ProdTypes, topN = 10, type ="relative", horiz=TRUE, cex.names=0.8,
+                  xlim=c(0,0.4), las=1, col="dark blue", 
+                  xlab = "% Transactions containing Products")  
+
+
+itemFrequencyPlot(transactions_b2b, topN = 10, type ="relative", horiz=TRUE, cex.names=0.8,
+                  xlim=c(0,0.4), las=1, col="dark blue", 
+                  xlab = "% Transactions containing Products") 
+
+
+itemFrequencyPlot(transactions_b2c, topN = 10, type ="relative", horiz=TRUE, cex.names=0.8,
+                  xlim=c(0,0.4), las=1, col="dark blue", 
+                  xlab = "% Transactions containing Products")
+```
+
+```{r , echo=FALSE, results='hide',fig.keep='all',message=FALSE}
+
+#FREQ ITEMS ##
+
+frequentItems <- eclat(ET, parameter = list(supp = 0.01, maxlen = 100))
+frecuenciaitems(frequentItems)
+
+inspect(frequentItems)
+plot(inspect(frequentItems))
+
+frequentItems <- eclat(ET_ProdCat, parameter = list(supp = 0.01, maxlen = 100))
+#inspect(frequentItems)
+
+frequentItems <- eclat(ET_ProdTypes, parameter = list(supp = 0.01, maxlen = 100))
+#inspect(frequentItems)
+
+#frequentItems <- eclat(oneCategorie, parameter = list(supp = 0.01, maxlen = 100))
+#inspect(frequentItems)
+
+frequentItems <- eclat(transactions_b2b, parameter = list(supp = 0.01, maxlen = 100))
+#inspect(frequentItems)
+
+frequentItems <- eclat(transactions_b2c, parameter = list(supp = 0.01, maxlen = 100))
+#inspect(frequentItems)
+
+
+```
+
+
+## MARKET BASKET ANALYSIS
+
+Despite being a start-up, Electronidex seems to have already a B2B clientes, and also a B2C clientes for high end products. Most sold products are Desktops and Laptops, which are the most profitable products. Weaknesses have been detected, but can be easily solved by Blackwell right after the purchasing.
+ 
+Electronidex B2C most sold products are high end, while Blackwell not. Blackwell could use this to have 2 brands depending on the target customer, this is very useful to access the full customer spectre.
+
+For this analysis, we have used a support of 0.025 and a confidence level of 0.1.
+For the B2C and B2B we have obtained 10 rules.
+
+Printer ink is one of the least sold products, even when it should be more sold than printers, meaning that there is room to improve, specially having such a big B2B ratio.
+
+
+
+
+
+```{r , echo=FALSE, results='hide',fig.keep='all',message=FALSE}
+#PRODUCT TYPE 
+
+Rules_ET_ProdTypes<-apriori(ET_ProdTypes, 
+                            parameter = list(support=0.025, confidence=0.1, minlen=2), 
+                            appearance = list(rhs=c("Accessories", "ActiveHeadPhones",
+                                                    "ComputerCord","ComputerHeadPhones","ComputerMouse", 
+                                                    "ComputerStand", "ComputerTablet","HardDrive", "Keyboard", 
+                                                    "Monitor","MouseAndKeyboardCombo","Printer", "PrinterInk", 
+                                                    "SmartHomeDevice", "Software", "Speaker")))
+
+inspect(sort(Rules_ET_ProdTypes, by="confidence", decreasing = T)  [1:10])
+plot(sort(Rules_ET_ProdTypes, by='confidence', decreasing = T)[1:10], method="grouped")
+
+
+#CAT
+
+Rules_ET_ProdCat<- apriori(ET_ProdCat, parameter = list(sup = 0.01, conf = 0.9, minlen = 2, target="rules"), appearance = list(rhs=c("Desktop")))
+
+#inspect(Rules_ET_ProdCat)
+
+#inspect(head(Rules_ET_ProdCat))
+
+
+# Rules Plots
+
+plot(sort(Rules_ET_ProdCat, by='confidence', decreasing = T)[1:10], method="grouped")
+plot(sort(Rules_ET_ProdCat, by='confidence', decreasing = T)[1:10], method="graph", engine="interactive")
+
+
+
+
+
+
+
+
+
+```
+
+
+```{r, echo=FALSE, include=FALSE}
+#norhs_laptpos_desktop<-Labels[!Labels % in %
+                                
+ # Inspect
+#inspect(sort(Rules_ET_ProdTypes, by='confidence', decreasing = T)[1:10])
+
+
+ # Rules Plots
+plot(sort(Rules_ET_ProdTypes, by='confidence', decreasing = T)[1:10], method="grouped")
+plot(sort(Rules_ET_ProdTypes, by='confidence', decreasing = T)[1:10], method="graph", engine="interactive")
+
+
+
+#CAT
+
+Rules_ET_ProdCat<- apriori(ET_ProdCat, parameter = list(sup = 0.01, conf = 0.9, minlen = 2, target="rules"), appearance = list(rhs=c("Desktop")))
+
+#inspect(Rules_ET_ProdCat)
+
+#inspect(head(Rules_ET_ProdCat))
+
+
+# Rules Plots
+
+plot(sort(Rules_ET_ProdCat, by='confidence', decreasing = T)[1:10], method="grouped")
+plot(sort(Rules_ET_ProdCat, by='confidence', decreasing = T)[1:10], method="graph", engine="interactive")
+
+#norhs_laptpos_desktop<-Labels[!Labels % in %
+                                
+ # Inspect
+#inspect(sort(Rules_ET_ProdCat, by='confidence', decreasing = T)[1:10])
+                              
+# Rules Plots
+                              
+plot(sort(Rules_ET_ProdCat, by='confidence', decreasing = T)[1:10], method="grouped")
+plot(sort(Rules_ET_ProdCat, by='confidence', decreasing = T)[1:10], method="graph", engine="interactive")
+                              
+                              
+                       
+#B2C
+
+
+Rules_B2C<-apriori(transactions_b2c, parameter = list(support=0.001, confidence=0.1, minlen=2),)
+
+inspect(sort(Rules_B2C, by='confidence', decreasing = T)[1:10])
+
+# Rules Plots
+
+plot(sort(Rules_B2C, by='confidence', decreasing = T)[1:10], method="grouped")
+plot(sort(Rules_B2C, by='confidence', decreasing = T)[1:10], method="graph", engine="interactive")
+
+
+
+
+
+
+#norhs_laptpos_desktop<-Labels[!Labels % in %
+                                
+ # Inspect
+   
+#inspect(sort(Rules_B2C, by='confidence', decreasing = T)[1:10])
+                              
+# Rules Plots
+
+plot(sort(Rules_B2C, by='confidence', decreasing = T)[1:10], method="grouped")
+
+plot(sort(Rules_B2C, by='confidence', decreasing = T)[1:10], method="graph")
+#B2B
+
+
+
+Rules_B2B<-apriori(transactions_b2b, parameter = list(support=0.001, confidence=0.1, minlen=2),)
+
+
+inspect(sort(Rules_B2B, by='confidence', decreasing = T)[1:10])
+
+# Rules Plots
+
+plot(sort(Rules_B2B, by='confidence', decreasing = T)[1:10], method="grouped")
+plot(sort(Rules_B2B, by='confidence', decreasing = T)[1:10], method="graph", engine="interactive")
+
+                                
+ # Rules Plots
+                              
+plot(sort(Rules_B2B, by='confidence', decreasing = T)[1:10], method="grouped")
+                              
+plot(sort(Rules_B2B, by='confidence', decreasing = T)[1:10], method="graph", engine="interactive")
+```
+
+
+``````{r , echo=FALSE, results='hide',fig.keep='all',message=FALSE}
+
+plot(sort(Rules_ET_ProdTypes, by='confidence', decreasing = T)[1:10], method="graph", engine="interactive")
+
+
+
+# Improve the model ####
+rules_by_lift <- sort(rules, by = "lift")
+inspect(rules_by_lift)
+ItemRules <- subset(rules_by_lift, items %in% c("Apple Earpods","HP Laptop"))
+inspect(ItemRules)
+is.redundant(ItemRules)
+
+# Read the products dataset (contains two products, one being the product names, the other being the product types) ####
+products <- read_excel('data/products.xlsx',col_names = TRUE)
+products <- as.data.frame(products)
+
+# Create a categories vector that stores the product type of each product in the transactions ####
+#categories_vector <- c()
+# for (i in 1:length(transactions@itemInfo$labels)){
+#   for (j in 1:nrow(products)){
+#     if (transactions@itemInfo$labels[i] == products[[j,1]]){
+#       categories_vector <- c(categories_vector,products[j,2])
+#       break
+#     }
+#   }
+# }
+# Function that calculates the closest match to a string from a string vector
+ClosestMatch <- function(string,StringVector) {
+  matches <- agrep(string,StringVector,value=TRUE)
+  if (length(matches) == 0){
+    # Use the double assign to use the not_found_names as a global variable
+    not_found_names <<- c(not_found_names,string)
+  }
+  distance <- sdists(string,matches,method = "ow")
+  matches <- data.frame(matches,as.numeric(distance))
+  matches <- subset(matches,distance==min(distance))
+  as.character(matches$matches)
+}
+categories_vector <- c()
+index_vector <- c()
+not_found_names <- c()
+# Loop to create the categories vector
+for (i in 1:length(transactions@itemInfo$labels)){
+  value <- ClosestMatch(transactions@itemInfo$labels[i], products$product)
+  index <- which(products$product == value)
+  index_vector <- c(index_vector,index)
+  categories_vector <- c(categories_vector,products[index,2])
+}
+# Print the product names that have not found a match
+not_found_names
+
+# Change the product types that contain the wors "Gaming", "Game" or "Gamer" in their product name to a new category called "Gaming"
+# gaming_indexes <- grepl("Gaming",transactions@itemInfo$labels)
+# game_indexes <- grepl("Game",transactions@itemInfo$labels)
+# gamer_indexes <- grepl("Gamer",transactions@itemInfo$labels)
+# categories_vector[gaming_indexes] <- "Gaming"
+# categories_vector[game_indexes] <- "Gaming"
+# categories_vector[gamer_indexes] <- "Gaming"
+
+# Group 'Laptops' and 'Desktop' under one category named 'PC' ####
+#categories_vector[categories_vector == 'Laptops' | categories_vector == 'Desktop'] <- 'PC'
+
+# Map the categories of electronidex to the categories of blackwell ####
+# Get the categories of the blackwell data
+existing_products <- read_excel('data/existingProductAttributes.xlsx', col_names = TRUE)
+existing_products <- as.data.frame(existing_products)
+# We have now 2 vectors containing the categories of each company
+# existing_product_types --> categories of blackwell data
+existing_product_types_blackwell <- unique(existing_products$ProductType)
+existing_product_types_blackwell
+# categories_vector --> categories of electronidex data
+existing_product_types_electronidex <- unique(categories_vector)
+existing_product_types_electronidex
+# Organize the categories of blackwell based on the categories of electronidex
+categories_vector_mapped <- c()
+
+# Aggregate by categories ####
+transactions_categories <- aggregate(transactions,categories_vector)
+
+# Visualize the transactions by categories ####
+itemFrequencyPlot(transactions_categories, topN=nrow(itemInfo(transactions_categories)), type='absolute',col=brewer.pal(8,'Pastel2'), main="Category Frequency Plot", ylab='Category Frequency (absolute)', cex=1, xlab='Categories')
+
+# Inspect rules by categories ####
+rules_categories <- apriori(transactions_categories, parameter = list(support = 0.1, confidence = 0.1, minlen=2))
+rules_categories_by_confidence <- sort(rules_categories, by = "lift")
+inspect(rules_categories_by_confidence)
+
+# Visualize the rules ####
+#tr_cat_df <- as(transactions_categories,'matrix')
+#source_gist(id='706a28f832a33e90283b')
+#arulesApp(transactions_categories)
+
+# Convert the sparse matrix of transactions into a dataframe ####
+transactions_dataframe <- as.data.frame(t(as.matrix((transactions@data))))
+colnames(transactions_dataframe)<-transactions@itemInfo$labels
+transactions_categories_dataframe <- as.data.frame(t(as.matrix((transactions_categories@data))))
+colnames(transactions_categories_dataframe)<-transactions_categories@itemInfo$labels
+# Create another variable to alter, while still keeping the original for later
+transactions_df <- transactions_dataframe
+#transactions_df_int = as.data.frame(sapply(transactions_df, as.integer))
+
+# Separate customers from distributors ####
+# Create a list that contains as many vectors as product types, and every product type vector is filled with all the product names of that product type. columns for each category in the transactions dataframe and initialize a list of product types that will later be filled
+product_types_list <- list()
+# Fill the list of product types with all product names of each product type (watch out: the index_vector that links the product names to product types is used here)
+for (i in 1:length(transactions@itemInfo$labels)){
+  product_types_list[[products[index_vector[i],2]]] <- c(product_types_list[[products[index_vector[i],2]]],transactions@itemInfo$labels[i])
+}
+# Fill the columns of the product types with the number of product types bought per transaction
+for (category in unique(categories_vector)){
+  transactions_df[,category] <- rowSums(transactions_df[product_types_list[[category]]])
+}
+# Calculate who is a customer and who is a distributor based on whether they bought two items of the same category or not and save the indices to two different vectors
+distributors_indices <- which(rowSums(transactions_df[,unique(categories_vector)] > 1) > 0)
+# Add transactions with more than one of the 'PC' types to distributors
+desktop_1 <- intersect(which(transactions_df$Desktop==1),which(transactions_df$Laptops==1))
+desktop_2 <- intersect(which(transactions_df$Laptops==1),which(transactions_df$`Gaming Pc` == 1))
+desktop_3 <- intersect(which(transactions_df$`Gaming Pc` == 1), which(transactions_df$Desktop==1))
+desktops_indices <- union(union(desktop_1,desktop_2),desktop_3)
+distributors_indices <- union(distributors_indices,desktops_indices)
+
+# Create the transactions containing only customers rows and only distributors rows, separated by product names and by product types
+transactions_customers_items_df <- transactions_dataframe[-distributors_indices,]
+transactions_distributors_items_df <- transactions_dataframe[distributors_indices,]
+transactions_customers_categories_df <- transactions_categories_dataframe[-distributors_indices,]
+transactions_distributors_categories_df <- transactions_categories_dataframe[distributors_indices,]
+# Create transactions tables from the dataframes ####
+transactions_customers_items <- as(transactions_customers_items_df,'transactions')
+transactions_distributors_items <- as(transactions_distributors_items_df,'transactions')
+transactions_customers_categories <- as(transactions_customers_categories_df,'transactions')
+transactions_distributors_categories <- as(transactions_distributors_categories_df,'transactions')
+
+# Calculate the rules for each of the 4 transactions tables using the apriori algorithm, sort by confidence, and inspect the rules ####
+rules_customers_categories <- apriori(transactions_customers_categories, parameter = list(support = 0.05, confidence = 0.1, minlen=2))
+rules_customers_categories_by_conf <- sort(rules_customers_categories, by = "confidence")
+inspect(rules_customers_categories_by_conf)
+rules_distributors_categories <- apriori(transactions_distributors_categories, parameter = list(support = 0.05, confidence = 0.85, minlen=2))
+rules_distributors_categories_by_conf <- sort(rules_distributors_categories, by = "confidence")
+inspect(rules_distributors_categories_by_conf)
+
+# Create vectors for the top categories, the top apple products, and the gaming computers to later investigate their rules ####
+top_categories <- c('Desktop','Laptops')
+apple_top_products <- c('iMac','Apple Earpods','Apple MacBook Air')
+gaming_computers <- c('Gaming Pc')
+
+# Put the Laptops and Desktops on the lhs for the customers_catgories transactions ####
+rules_customers_categories <- apriori(transactions_customers_categories, parameter = list(support = 0.005, confidence = 0.1, minlen=2), appearance = list(lhs = top_categories))
+rules_customers_categories_by_conf <- sort(rules_customers_categories, by = "lift")
+rules_customers_categories_by_conf <- rules_customers_categories_by_conf[!is.redundant(rules_customers_categories_by_conf)]
+inspect(rules_customers_categories_by_conf)
+plot(rules_customers_categories_by_conf, method="graph", control=list(type="items"))
+
+# Put the Laptops and Desktops on the lhs for the distributors_categories transactions ####
+rules_distributors_categories <- apriori(transactions_distributors_categories, parameter = list(support = 0.01, confidence = 0.2, minlen=2), appearance = list(lhs = top_categories))
+rules_distributors_categories_by_conf <- sort(rules_distributors_categories, by = "lift")
+rules_distributors_categories_by_conf <- rules_distributors_categories_by_conf[!is.redundant(rules_distributors_categories_by_conf)]
+inspect(rules_distributors_categories_by_conf)
+plot(rules_distributors_categories_by_conf, method="graph", control=list(type="items"))
+
+# Put the iMac on the lhs for the customers_categories transactions ####
+rules_customers_items <- apriori(transactions_customers_items, parameter = list(support = 0.0001, confidence = 0.025, minlen=2), appearance = list(lhs = 'iMac'))
+rules_customers_items_by_conf <- sort(rules_customers_items, by = "lift")
+rules_customers_items_by_conf <- rules_customers_items_by_conf[!is.redundant(rules_customers_items_by_conf)]
+inspect(rules_customers_items_by_conf)
+plot(rules_customers_items_by_conf, method="graph", control=list(type="items"))
+
+# Put the iMac on the lhs for the distributors_categories transactions ####
+rules_distributors_items <- apriori(transactions_distributors_items, parameter = list(support = 0.01, confidence = 0.1, minlen=2), appearance = list(lhs = 'iMac'))
+rules_distributors_items_by_conf <- sort(rules_distributors_items, by = "lift")
+rules_distributors_items_by_conf <- rules_distributors_items_by_conf[!is.redundant(rules_distributors_items_by_conf)]
+inspect(rules_distributors_items_by_conf)
+plot(rules_distributors_items_by_conf, method="graph", control=list(type="items"))
+
+# Plot the proportion of Retailers buying multiple Gaming Pcs (which will be considered Gaming retailers) ####
+retailers_buying_one_gaming_pc <- sum(transactions_df['Gaming Pc'] > 0) - sum(transactions_customers_categories_df['Gaming Pc'] > 0) - sum(transactions_df['Gaming Pc'] > 1)
+retailers_buying_multiple_gaming_pc <- sum(transactions_df['Gaming Pc'] > 1)
+multiple_gaming_pcs <- data.frame (type = c("One Gaming PC", "Multiple Gaming PCs"), number = c(retailers_buying_one_gaming_pc,retailers_buying_multiple_gaming_pc), prop = c(retailers_buying_one_gaming_pc/(retailers_buying_one_gaming_pc+retailers_buying_multiple_gaming_pc), retailers_buying_multiple_gaming_pc/(retailers_buying_multiple_gaming_pc + retailers_buying_one_gaming_pc)) )
+ggplot( data = multiple_gaming_pcs, aes( x= "", y = number,  fill = type))+
+  geom_bar(stat = "identity", color = "white")+
+  coord_polar("y", start=0)+
+  scale_fill_brewer(palette="Blues")+
+  theme_void()+
+  geom_text(aes(label = paste0(round(number),  " - ", round(prop*100), "%")), position = position_stack(vjust = 0.5)) +
+  ggtitle('Proportion of Retailers buying multiple Gaming PCs')
+
+# Plot the proportion of Retailers buying Gamingg Pcs ####
+retailers_buying_gaming_pc <- sum(transactions_distributors_categories_df['Gaming Pc'] > 0)
+retailers_not_buying_gaming_pc <- 4822 - sum(transactions_distributors_categories_df['Gaming Pc'] > 0)
+buying_gaming_pcs <- data.frame (type = c("Buying Gaming PCs", "Not Buying Gaming PCs"), number = c(retailers_buying_gaming_pc,retailers_not_buying_gaming_pc), prop = c(retailers_buying_gaming_pc/(retailers_buying_gaming_pc+retailers_not_buying_gaming_pc), retailers_not_buying_gaming_pc/(retailers_buying_gaming_pc + retailers_not_buying_gaming_pc)) )
+ggplot( data = buying_gaming_pcs, aes( x= "", y = number,  fill = type))+
+  geom_bar(stat = "identity", color = "white")+
+  coord_polar("y", start=0)+
+  scale_fill_brewer(palette="Blues")+
+  theme_void()+
+  geom_text(aes(label = paste0(round(number),  " - ", round(prop*100), "%")), position = position_stack(vjust = 0.5)) +
+  ggtitle('Proportion of Retailers buying Gaming PCs')
+
+# Plot the percentage of items bought in Distributors transactions vs in Customers transactions ####
+items_customers <- sum(size(transactions_customers_items))
+items_distributors <- sum(size(transactions_distributors_items))
+items_transaction_distribution <- data.frame (type = c("Customer number of items", "Distributors number of items"), number = c(items_customers,items_distributors), prop = c(items_customers/(items_customers+items_distributors), items_distributors/(items_customers + items_distributors)) )
+ggplot( data = items_transaction_distribution, aes( x= "", y = number,  fill = type))+
+  geom_bar(stat = "identity", color = "white")+
+  coord_polar("y", start=0)+
+  scale_fill_brewer(palette="Blues")+
+  theme_void()+
+  geom_text(aes(label = paste0(round(number),  " - ", round(prop*100), "%")), position = position_stack(vjust = 0.5)) +
+  ggtitle('Proportion of Retailers buying Gaming PCs')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+## CONCLUSIONS AND RECOMMENDATIONS 
+
+Aside of the previously mentioned in this report, we got to the following conclusions and recommendations:
+
+Based on the previous analysis we know that  Blackwell's offers a Extended Warranty service while Electronidex does not. This lowers Electronidex value but we can apply Blackwell's strenght to cover it and make Eletronidex more valuable after the purchase.
+
+Electronidex is only able to pull data on the items that customers purchased per their transactions" While this fact has limited our chances to analize deeper the company, also points out that there is a lot of room for improvement, therefore increase Electronidex's value after its purchase.
+ 
+Many rules could be considered irrelevant, but for these, we could suggest to the customer the products with more added value, since we may not affect customer's decision of buying an specific accessory, but we can push him/her to buy a better one (more added value). E.g. Laptop + gaming mouse instead of a regular mouse.
+ 
+We can either suggest a high added value product, or a medium related product, so customer buys what they weren't looking for. For this, we could select products we want to promote.
+
+Related to the previous points: 
+Bundles with low sales products could be offer while navigating to promote them (for selected ones), so "you buy what you weren't looking for". 
+Bundles for highly related products could be offered right before the purchase step, to provoke a last impulse to buy it, "You forgot to buy x?
+
+We shouldn't focus only on highly related products, since we want to promote the medium ones (we could identify future trends!)
+ 
+We have found interesting baskets -> Not apparently related products (Dell + apple keyboard) 
+ 
+Blackwell's purchasing power can help Electronidex get better deals with producers and distributors, finally improving their sales via cheaper prices.
+
+Despite being a start-up, Electronidex seems to have already a B2B clientes, and also a B2C clientes for high end products. Most sold products are Desktops and Laptops, which are the most profitable products. Weaknesses have been detected, but can be easily solved by Blackwell right after the purchasing. 
+
+Therefore, based on this analysis, we support the purchasing of Electronidex, and hope that this reports, among the other proper analysis, enlights this decision taking.
+ 
+As limitations we can conclude that:
+
+Electronidex is only able to pull data on the items that customers purchased per their transactions" More info could have been provided. 
+ 
+No economic info, eg Price, profict margin, amount spent per transaction, etc. It would be easier to classify per B2B with this info.
+We have not been provided with Blackwell's transactions, to understand how different clientele is.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
